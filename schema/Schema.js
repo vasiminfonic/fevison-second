@@ -31,7 +31,7 @@ const postSchema = new mongoose.Schema({
 });
 const categorySchema = new mongoose.Schema({
   _id: mongoose.Schema.Types.ObjectId,
-  categoryTitle: String,
+  categoryTitle: {type: String, required: true},
   description: String,
   created: {type: Date, default: Date.now },
   modified: { type: Date, default: Date.now}

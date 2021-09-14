@@ -1,14 +1,12 @@
 const express = require('express');
 const  router = express.Router();
-const { PostModal } = require('../schema/Schema')
+const { PostModal, CategoryModal } = require('../schema/Schema')
 require('dotenv').config();
 const mongoose = require('mongoose');
 const slugify = require('slugify')
 const multer  = require('multer')
-const { json } = require('express');
+const { json, query } = require('express');
 let path = require('path');
-
-
 
 
 const storage = multer.diskStorage({
@@ -32,8 +30,6 @@ router.get('/', async (req,res)=>{
       res.status(404)
 		res.send({ error: "Post doesn't exist!" + e})
    }
-   // res.json({message: "requested for get"})
-  
 })
 router.post('/del',async(req, res)=>{
    console.log(req.body)
@@ -45,41 +41,34 @@ router.post('/del',async(req, res)=>{
    }
    
 })
-router.post('/add',upload.array('image',10), async(req,res)=>{
-   console.log(req.files)
+router.post('/add',upload.array('image',10),async(req,res)=>{
+   const { title, paragraph, category, seo_title, seo_description, seo_keyword } = req.body;
+   console.log(title, paragraph)
+  
    const images = [];
    req.files.forEach(ele => {
       images.push(ele.filename);
     });
-
-   try {
       const newPost = new PostModal({
       _id: new mongoose.Types.ObjectId,
-      title: req.body.title,
-      slug: slugify(`${req.body.title}`,{ lower: true, remove: /[*+~.()'"!:@]/g }),
-      paragraph: req.body.paragraph,
-      category: req.body.category,
-      seo_title: req.body.seo_title,
-      seo_keyword: req.body.seo_keyword,
-      seo_description:req.body.seo_description,
+      title: title,
+      slug: slugify(`${title}`,{ lower: true, remove: /[*+~.()'"!:@]/g }),
+      paragraph: paragraph,
+      category: category,
+      seo_title: seo_title,
+      seo_keyword: seo_keyword,
+      seo_description: seo_description,
       image: images
-   })
+      })
    await newPost.save()
-   .then(
-   res.status(200).json({message: "Post Inserted Succesfully"})
-   )
-   }catch{
-      res.json("got an error")
-   
-   }
-      
-   res.json({message: "request for add"})
-})
-
+   .then(doc => res.status(200).json({doc: doc,message: 'Data Inserted Successfully'}))
+   .catch((err)=>res.status(404).json(err))
+});
 
 
 router.put('/update',upload.array('image',10), async(req,res)=>{
    console.log(req.files)
+   
    const images = [];
    req.files.forEach(ele => {
       images.push(ele.filename);
@@ -100,6 +89,7 @@ router.put('/update',upload.array('image',10), async(req,res)=>{
    }})
    .then(res.status(200).json({message: "Post Updated Succesfully"}))
    .catch((err)=>console.log(err))
+
    }catch(err){
       res.status(400).json("got an error" + err)
    }  
@@ -129,16 +119,24 @@ router.get('/gettra' ,async(req,res)=>{
 
 
 router.get('/filter', async (req,res)=>{
-   let  num = parseInt(req.query.page) || 0;
-   if(num <= 0){
+   const { page, row, catId } = req.query;
+  
+   let  num = parseInt(page) || 0;
+   if(num <= 0) {
       num = 0
    }
    console.log(num)
-   let limit = parseInt(req.query.row) || 10
+   let limit = parseInt(row) || 10
    let diff = limit * (num);
    let total = 0;
    try {
-      PostModal.countDocuments({status: 'active'}, (err,result)=>{
+      let findValue;
+      if(catId !== 'null'){
+         findValue = {$and: [{status: 'active'}, {category: { $in: catId }}]}
+      }else{
+         findValue = {status: 'active'}
+      }
+      await PostModal.countDocuments(findValue, (err,result)=>{
          if(err){
             console.log(err)
             res.json({err})
@@ -146,15 +144,15 @@ router.get('/filter', async (req,res)=>{
             total = result
          }
       })
-      const getPost = await PostModal.find({status: 'active'}).skip(diff).limit(limit)
+
+      const getPost = await PostModal.find(findValue).skip(diff).limit(limit)
       res.status(200).json({getPost,total})
       // console.log(countDoc)
+      console.log(req.query,total)
    }catch(e){
       res.status(404)
 		res.send({ error: "Post doesn't exist!" + e})
-   }
-   // res.json({message: "requested for get"})
-  
+   }  
 })
 
 router.get('/filter/category', async (req,res)=>{
@@ -209,6 +207,34 @@ router.post('/delall',async (req, res)=>{
       res.status(400).json({message: err })
    }
    
+})
+router.get('/find/:id', async (req,res)=>{
+   const _id = req.params.id 
+   console.log(req.params)
+   try {
+      const getPost = await PostModal.findOne({ $and: [{status: 'active'},{_id}] }).select('-__v')
+      res.status(200).json(getPost)
+   }catch(e){
+      res.status(404)
+		res.send({ error: "Post doesn't exist!" + e})
+   }
+   res.json({message: "requested for get"})
+  
+})
+
+
+router.get('/find_slug/:filter', async (req,res)=>{
+   const slug = req.params.filter 
+   console.log(req.params)
+   try {
+      const getPost = await PostModal.findOne({ $and: [{status: 'active'},{ slug }] }).select('-__v')
+      res.status(200).json(getPost)
+   }catch(e){
+      res.status(404)
+		res.send({ error: "Post doesn't exist!" + e})
+   }
+   res.json({message: "requested for get"})
+  
 })
 
 
