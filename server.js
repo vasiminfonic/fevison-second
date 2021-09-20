@@ -46,8 +46,6 @@ app.get('/*', function(request, response) {
   });
 });
 
-
 app.use(express.static(path.resolve(__dirname, 'fevison/build')));
-
 
 app.listen(PORT, () => console.log('Server is Running on port' + PORT));

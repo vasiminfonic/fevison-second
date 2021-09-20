@@ -1,11 +1,9 @@
 const express = require('express');
 const  router = express.Router();
-const { UserModal } = require('../schema/Schema')
+const { UserModal, CategoryModal, PostModal } = require('../schema/Schema')
 require('dotenv').config();
 const mongoose = require('mongoose');
-const slugify = require('slugify')
 const multer  = require('multer')
-const { json } = require('express');
 let path = require('path');
 const config = process.env;
 const auth = require("../middleware/auth");
@@ -15,7 +13,6 @@ router.get('/',async(req,res)=>{
     res.status(200).json({
         message: "this is the message from user"
     })
-
 })
 router.post('/signup',async(req,res)=>{
     await new UserModal({
@@ -102,7 +99,7 @@ router.post("/register", async (req, res) => {
           { user_id: user._id, email },
           process.env.TOKEN_KEY,
           {
-            expiresIn: "2h",
+            expiresIn: '2h' 
           }
         );
   
@@ -121,6 +118,36 @@ router.post("/register", async (req, res) => {
   router.get("/welcome", auth, (req, res) => {
     res.status(200).send("Welcome 🙌 ");
   });
+
+  router.get('/dasboard', async (req, res) => {
+    try{
+      const users = await UserModal.countDocuments();
+      const categories = await CategoryModal.countDocuments();
+      const posts = await PostModal.countDocuments();
+      res.status(200).json({users,categories,posts});
+    }catch(err){
+      return (console.log(error));
+    }
+  });
+  router.get('/find',async (req,res)=>{
+    console.log(req);
+    let authHeader = req.headers.authorization;
+    if(!authHeader){
+      return res.status(403).json("header is Required");
+    }
+    const token = authHeader.split(' ')[1];
+    const { user_id } = jwt.verify(token,process.env.TOKEN_KEY)
+    try{
+    const user = await UserModal.findOne({_id: user_id }).select('-__v -password -status');
+    if(!user){
+      return console.log('user is empty');
+    }
+    res.status(200).json(user);
+    }catch(err){
+      console.log(err);
+    }
+
+  })
 
 
 module.exports = router;

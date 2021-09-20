@@ -24,12 +24,14 @@ let upload = multer({ storage:storage });
 
 router.get('/', async (req,res)=>{
    try {
-      const getPost = await PostModal.find({status: 'active'})
+      const getPost = await PostModal.find({status: 'active'}).select('-status -__v').sort({ _id: -1 });
       res.status(200).json(getPost)
    }catch(e){
       res.status(404)
 		res.send({ error: "Post doesn't exist!" + e})
    }
+   // res.json({message: "requested for get"})
+  
 })
 router.post('/del',async(req, res)=>{
    console.log(req.body)
@@ -68,24 +70,38 @@ router.post('/add',upload.array('image',10),async(req,res)=>{
 
 router.put('/update',upload.array('image',10), async(req,res)=>{
    console.log(req.files)
+   let { title, paragraph, category, seo_title, seo_keyword, seo_description, seo_slug, userId } = req.body;
    
    const images = [];
    req.files.forEach(ele => {
       images.push(ele.filename);
     });
-    console.log(req.body)
+   //  let newCategory= [];
+   //  let finalcat; 
+   //  if(category){
+   //    category.forEach(element => {
+   //       if(element !== ''){
+   //          const el = element.replace(/,/g, "");
+   //          newCategory.push(el);
+   //       }
+   //    });
+   //     finalcat = newCategory.filter((elm,i)=>{
+   //       return newCategory.indexOf(elm) === i;
+   //    });
+   //  }
+   //  console.log(finalcat);
+    
+    console.log(req.body.category);
    try { 
-
-      await PostModal.updateOne({ _id: req.body.userId }, { $set: { 
-      title: req.body.title,
-      slug:req.body.slug,
-      paragraph: req.body.paragraph,
-      category: req.body.category,
+      await PostModal.updateOne({ _id: userId }, { $set: { 
+      title: title,
+      slug: seo_slug,
+      paragraph: paragraph,
+      category: category,
       image: images,
-      seo_title: req.body.seo_title,
-      seo_keyword: req.body.seo_keyword,
-      seo_description: req.body.seo_description,
-      
+      seo_title: seo_title,
+      seo_keyword: seo_keyword,
+      seo_description: seo_description,
    }})
    .then(res.status(200).json({message: "Post Updated Succesfully"}))
    .catch((err)=>console.log(err))
@@ -96,22 +112,42 @@ router.put('/update',upload.array('image',10), async(req,res)=>{
 })
 
 
-router.put('/tra',async(req, res)=>{
-   console.log(req.body)
-
+router.put('/trash',async(req, res)=>{
+   const { userId, status } = req.body;
+   let count;
+   if (userId){
+      count = userId.length;
+   }
+   console.log(userId, status);
     try{
-    await PostModal.updateOne({ _id: req.body.userId }, { $set: { status: req.body.status }})
-   .then(res.status(200).json({message:'One File Has Been Trashed'}))
+    await PostModal.updateMany({ _id: {$in :userId }}, { $set: { status }})
+   .then(res.status(200).json({message:`${count} File has been ${ status === 'active' ? 'restore' : 'trashed' } `}))
    }catch(err){
       res.status(400).json({message:'got an'+ err })
    }
-   
 })
-router.get('/gettra' ,async(req,res)=>{
-   console.log(req.body)
+router.get('/trash/filter' ,async(req,res)=>{
+   let { page, row } = req.query
+   if(page <= 0){
+      page = 0;
+   }
+   if(row <= 5){
+      row = 5;
+   }
+   let diff = row * page;
+   console.log(page, row);
+   let total;
    try{
-      await PostModal.find({status: 'deActive'})
-      .then(doc=>res.status(200).json(doc))
+      await PostModal.countDocuments({status: 'deActive'})
+      .then(res=>total = res)
+      .catch(err=>console.log(err));
+   }catch(err){
+      console.log(err);
+   }
+   try{
+      await PostModal.find({status: 'deActive'}).skip(+diff).limit(+row)
+      .then(doc=>res.status(200).json({data: doc,total}))
+      .catch(err=>console.log(err));
    }catch(err){
       res.status(400).json({message: 'got error' + err})
    }
@@ -145,7 +181,7 @@ router.get('/filter', async (req,res)=>{
          }
       })
 
-      const getPost = await PostModal.find(findValue).skip(diff).limit(limit)
+      const getPost = await PostModal.find(findValue,'-status -__v').skip(+diff).limit(+limit).sort({ _id: -1 });
       res.status(200).json({getPost,total})
       // console.log(countDoc)
       console.log(req.query,total)
@@ -198,9 +234,12 @@ router.get('/filter/category', async (req,res)=>{
 })
 router.post('/delall',async (req, res)=>{
    console.log(req.body)
-   const ids = req.body.id
-   let count = ids.length 
-    try{
+   const ids = req.body.id;
+   let count;
+   if(ids){
+      count = ids.length; 
+   }
+   try{
    await PostModal.deleteMany({ _id: { $in: ids}})
    .then(res.status(200).json({message:`Your ${count} File Has Been Deleted`}))
    }catch(err){
@@ -212,16 +251,14 @@ router.get('/find/:id', async (req,res)=>{
    const _id = req.params.id 
    console.log(req.params)
    try {
-      const getPost = await PostModal.findOne({ $and: [{status: 'active'},{_id}] }).select('-__v')
+      const getPost = await PostModal.findOne({ $and: [{status: 'active'},{_id}] }).select('-status -__v')
       res.status(200).json(getPost)
    }catch(e){
       res.status(404)
 		res.send({ error: "Post doesn't exist!" + e})
    }
-   res.json({message: "requested for get"})
   
 })
-
 
 router.get('/find_slug/:filter', async (req,res)=>{
    const slug = req.params.filter 
