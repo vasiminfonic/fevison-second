@@ -9,17 +9,14 @@ const { json } = require('express');
 router.get('/', async(req, res)=>{ 
     try{
      const findCat = await CategoryModal.find().select("_id categoryTitle description")
-     res.status(200).json(findCat)
+     res.status(200).json(findCat);
      
     }catch(err){
         res.status(200).json({message: 'something went wrong +'+ err})
     }
-    // res.json({message: "rought is working"})
-
-})
+});
 router.post('/add', async(req, res)=>{
-    console.log(req.body)
-    
+    console.log(req.body);
     try{
      const newCat = new CategoryModal({
         _id: new mongoose.Types.ObjectId,
@@ -35,14 +32,18 @@ router.post('/add', async(req, res)=>{
 
 })
 router.delete('/del', async(req, res)=>{
-    console.log(req.body)
-    try{
-   await CategoryModal.deleteOne({ _id: req.body.userId })
-   .then(res.status(200).json({message:'One Category Has Been Deleted'}))
+    const ids = req.body.userId;
+   let count;
+   if(ids){
+      count = ids.length; 
+   }
+   try{
+   await CategoryModal.deleteMany({ _id: { $in: ids }})
+   .then(res.status(200).json({message:`${count} Category Has Been Deleted`}))
    }catch(err){
       res.status(400).json({message: "Got an error" + err })
    }
-})
+});
 
 router.put('/upd', async(req, res)=>{
     console.log(req.body)
@@ -68,12 +69,33 @@ router.get('/find/:id', async(req, res)=>{
     }catch(err){
         res.status(200).json({message: 'something went wrong +'+ err})
     }
-    // res.json({message: "rought is working"})
-
 })
-
-
-
+router.get('/filter', async(req, res)=>{ 
+    let { page, row } = req.query;
+    if(page <= 0){
+        page = 0;
+     }
+     if(row <= 5){
+        row = 5;
+     }
+     let diff = row * page;
+     console.log(page, row);
+     let total;
+     try{
+        await CategoryModal.countDocuments()
+        .then(res=>total = res)
+        .catch(err=>console.log(err));
+     }catch(err){
+        console.log(err);
+     }
+     try{
+        await CategoryModal.find().skip(+diff).limit(+row)
+        .then(doc=>res.status(200).json({data: doc,total}))
+        .catch(err=>console.log(err));
+     }catch(err){
+        res.status(400).json({message: 'got error' + err})
+     }
+});
 
 
 module.exports = router

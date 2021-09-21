@@ -25,7 +25,7 @@ let upload = multer({ storage:storage });
 router.get('/', async (req,res)=>{
    try {
       const getPost = await PostModal.find({status: 'active'}).select('-status -__v').sort({ _id: -1 });
-      res.status(200).json(getPost)
+      res.status(200).json(getPost);
    }catch(e){
       res.status(404)
 		res.send({ error: "Post doesn't exist!" + e})
@@ -41,7 +41,6 @@ router.post('/del',async(req, res)=>{
    }catch(err){
       res.status(400).json({message: err })
    }
-   
 })
 router.post('/add',upload.array('image',10),async(req,res)=>{
    const { title, paragraph, category, seo_title, seo_description, seo_keyword } = req.body;
@@ -70,35 +69,21 @@ router.post('/add',upload.array('image',10),async(req,res)=>{
 
 router.put('/update',upload.array('image',10), async(req,res)=>{
    console.log(req.files)
-   let { title, paragraph, category, seo_title, seo_keyword, seo_description, seo_slug, userId } = req.body;
+   let { title, paragraph, category, seo_title, seo_keyword, seo_description, slug, userId } = req.body;
    
    const images = [];
    req.files.forEach(ele => {
       images.push(ele.filename);
     });
-   //  let newCategory= [];
-   //  let finalcat; 
-   //  if(category){
-   //    category.forEach(element => {
-   //       if(element !== ''){
-   //          const el = element.replace(/,/g, "");
-   //          newCategory.push(el);
-   //       }
-   //    });
-   //     finalcat = newCategory.filter((elm,i)=>{
-   //       return newCategory.indexOf(elm) === i;
-   //    });
-   //  }
-   //  console.log(finalcat);
     
     console.log(req.body.category);
    try { 
       await PostModal.updateOne({ _id: userId }, { $set: { 
       title: title,
-      slug: seo_slug,
       paragraph: paragraph,
       category: category,
       image: images,
+      slug: slugify(`${slug}`,{ lower: true, remove: /[*+~.()'"!:@]/g }),
       seo_title: seo_title,
       seo_keyword: seo_keyword,
       seo_description: seo_description,

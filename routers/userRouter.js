@@ -1,6 +1,6 @@
 const express = require('express');
 const  router = express.Router();
-const { UserModal, CategoryModal, PostModal } = require('../schema/Schema')
+const { UserModal, CategoryModal, PostModal, ContactModal } = require('../schema/Schema')
 require('dotenv').config();
 const mongoose = require('mongoose');
 const multer  = require('multer')
@@ -123,14 +123,14 @@ router.post("/register", async (req, res) => {
     try{
       const users = await UserModal.countDocuments();
       const categories = await CategoryModal.countDocuments();
-      const posts = await PostModal.countDocuments();
-      res.status(200).json({users,categories,posts});
+      const contact = await ContactModal.countDocuments();
+      const posts = await PostModal.countDocuments({status: 'active'});
+      res.status(200).json({users,categories,posts,contact});
     }catch(err){
       return (console.log(error));
     }
   });
   router.get('/find',async (req,res)=>{
-    console.log(req);
     let authHeader = req.headers.authorization;
     if(!authHeader){
       return res.status(403).json("header is Required");
