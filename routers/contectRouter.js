@@ -19,7 +19,6 @@ router.get('/', async(req, res)=>{
 router.post('/add', async(req, res)=>{
     console.log(req.body)
     const { name, email, subject, message } = req.body;
-    
     try{
         const data = new ContactModal({
             name: name,
@@ -48,14 +47,14 @@ router.get('/filter', async(req, res)=>{
      console.log(page, row);
      let total;
      try{
-        await ContactModal.countDocuments()
+        await ContactModal.countDocuments({status: 'active'})
         .then(res=>total = res)
         .catch(err=>console.log(err));
      }catch(err){
         console.log(err);
      }
      try{
-        await ContactModal.find().sort({_id: -1}).skip(+diff).limit(+row)
+        await ContactModal.find({status: 'active'}).sort({_id: -1}).skip(+diff).limit(+row)
         .then(doc=>res.status(200).json({data: doc,total}))
         .catch(err=>console.log(err));
      }catch(err){
@@ -102,6 +101,49 @@ router.put('/upd', async(req, res)=>{
     }catch(err){
         res.status(400).json({message: 'something went wrong +'+ err})
     }
-})
+});
+router.put('/trash',async(req, res)=>{
+    const { userId, status } = req.body;
+    let count;
+    if (userId){
+       count = userId.length;
+    }
+    console.log(userId, status);
+     try{
+     await ContactModal.updateMany({ _id: {$in :userId }}, { $set: { status }})
+    .then(res.status(200).json({message:`${count} File has been ${ status === 'active' ? 'restore' : 'trashed' } `}))
+    .catch((err)=>res.status(400).json({message: err}));
+    }catch(err){
+       res.status(500).json({message:'got an'+ err });
+    }
+ });
+ router.get('/trash/filter' ,async(req,res)=>{
+    let { page, row } = req.query
+    if(page <= 0){
+       page = 0;
+    }
+    if(row <= 5){
+       row = 5;
+    }
+    let diff = row * page;
+    console.log(page, row);
+    let total;
+    try{
+       await ContactModal.countDocuments({status: 'deActive'})
+       .then(res=>total = res)
+       .catch(err=>console.log(err));
+    }catch(err){
+       console.log(err);
+    }
+    try{
+       await ContactModal.find({status: 'deActive'}).skip(+diff).limit(+row)
+       .then(doc=>res.status(200).json({data: doc,total}))
+       .catch(err=>res.status(400).json({message: err}));
+    }catch(err){
+       res.status(400).json({message: 'got error' + err})
+    }
+ });
+
+ 
 
 module.exports = router

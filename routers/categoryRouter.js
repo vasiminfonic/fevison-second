@@ -29,8 +29,7 @@ router.post('/add', async(req, res)=>{
     }catch(err){
         res.status(200).json({message: 'something went wrong +'+ err})
     }
-
-})
+});
 router.delete('/del', async(req, res)=>{
     const ids = req.body.userId;
    let count;
@@ -82,20 +81,62 @@ router.get('/filter', async(req, res)=>{
      console.log(page, row);
      let total;
      try{
-        await CategoryModal.countDocuments()
+        await CategoryModal.countDocuments({status: 'active'})
         .then(res=>total = res)
         .catch(err=>console.log(err));
      }catch(err){
         console.log(err);
      }
      try{
-        await CategoryModal.find().skip(+diff).limit(+row)
+        await CategoryModal.find({status: 'active'}).sort({ _id: -1 }).skip(+diff).limit(+row)
         .then(doc=>res.status(200).json({data: doc,total}))
         .catch(err=>console.log(err));
      }catch(err){
         res.status(400).json({message: 'got error' + err})
      }
 });
+router.put('/trash',async(req, res)=>{
+    const { userId, status } = req.body;
+    let count;
+    if (userId){
+       count = userId.length;
+    }
+    console.log(userId, status);
+     try{
+     await CategoryModal.updateMany({ _id: {$in :userId }}, { $set: { status }})
+    .then(res.status(200).json({message:`${count} File has been ${ status === 'active' ? 'restore' : 'trashed' } `}))
+    .catch((err)=>res.status(400).json({message: err}));
+    }catch(err){
+       res.status(500).json({message:'got an'+ err });
+    }
+ });
+
+ router.get('/trash/filter' ,async(req,res)=>{
+    let { page, row } = req.query
+    if(page <= 0){
+       page = 0;
+    }
+    if(row <= 5){
+       row = 5;
+    }
+    let diff = row * page;
+    console.log(page, row);
+    let total;
+    try{
+       await CategoryModal.countDocuments({status: 'deActive'})
+       .then(res=>total = res)
+       .catch(err=>console.log(err));
+    }catch(err){
+       console.log(err);
+    }
+    try{
+       await CategoryModal.find({status: 'deActive'}).sort({_id: -1}).skip(+diff).limit(+row)
+       .then(doc=>res.status(200).json({data: doc,total}))
+       .catch(err=>res.status(400).json({message: err}));
+    }catch(err){
+       res.status(400).json({message: 'got error' + err})
+    }
+ })
 
 
 module.exports = router

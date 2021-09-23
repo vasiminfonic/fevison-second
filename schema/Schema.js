@@ -16,9 +16,9 @@ const blogSchema = new mongoose.Schema({
 });
 const postSchema = new mongoose.Schema({
   _id: mongoose.Schema.Types.ObjectId,
-  title: String,
+  title: { type: String,require: true },
   slug:String,
-  paragraph: String,
+  paragraph: {type: String,require: true},
   category: [String],
   image: [String],
   status: {type: String, default: 'active'},
@@ -28,6 +28,7 @@ const postSchema = new mongoose.Schema({
 },{ timestamps:true });
 const categorySchema = new mongoose.Schema({
   _id: mongoose.Schema.Types.ObjectId,
+  status: {type: String, default: 'active'},
   categoryTitle: {type: String, required: true},
   description: String,
 },{ timestamps:true });
@@ -44,7 +45,9 @@ const contactSchema = new mongoose.Schema({
   name: String,
   email: String,
   subject: String,
-  message: String
+  message: String,
+  status: {type: String, default: 'active'},
+
 },{ timestamps:true });
 
 module.exports.ContactModal = mongoose.model('Contact', contactSchema);
