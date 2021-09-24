@@ -33,21 +33,20 @@ const categorySchema = new mongoose.Schema({
   description: String,
 },{ timestamps:true });
 const userSchema = new mongoose.Schema({
-  _id: mongoose.Schema.Types.ObjectId,
-  name: String,
+  name: {type: String, required: true },
   email: { type: String, required: true, index: { unique: true } },
   password: { type: String, required: true },
-  status: { type: String, default:'deActive'},
-  token: { type: String },
+  status: { type: String, default:'active'},
+  role: {type: String, default: 'subAdmin'},
+  active: {type: String, default: 'false'},
 },{ timestamps:true });
 
 const contactSchema = new mongoose.Schema({
   name: String,
-  email: String,
+  email: {type: String, required: true},
   subject: String,
   message: String,
   status: {type: String, default: 'active'},
-
 },{ timestamps:true });
 
 module.exports.ContactModal = mongoose.model('Contact', contactSchema);

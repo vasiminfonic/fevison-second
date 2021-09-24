@@ -23,11 +23,7 @@ router.post('/signup',async(req,res)=>{
         message: "this is from the signup side"
     })
 })
-// router.post('/login',async(req,res)=>{
-//     res.status(200).json({
-//         message: "this is from the login side"
-//     })
-// })
+
 router.post("/register", async (req, res) => {
   console.log(req.body);
 
@@ -91,15 +87,21 @@ router.post("/register", async (req, res) => {
   
       // Validate user input
       if (!(email && password)) {
-        res.status(400).json({error:"All input is required"});
+        return res.status(400).json({error:"All input is required", err:true});
       }
       // Validate if user exist in our database
       const user = await UserModal.findOne({ email });
+      if(!user){
+        return res.status(404).json({message:"Un Athorize!", err:true});
+      }
+      if(user && user.active ==='false'){
+        return res.status(404).json({message:"Un Athorize! Please Contect to Admin", err:true});
+      }
   
       if (user && password) {
         // Create token
         const token = jwt.sign(
-          { user_id: user._id, email },
+          { user_id: user._id, email, role: user.role },
           process.env.TOKEN_KEY,
           {
             expiresIn: '2h' 
@@ -107,12 +109,14 @@ router.post("/register", async (req, res) => {
         );
   
         // save user token
-        user.token = token;
+        // user.token = token;
+
   
         // user
-        res.status(200).json(user);
+       return res.status(200).json({token, role: user.role});
+      }else{
+       return res.status(400).json({error:"Invalid Credentials"});
       }
-      res.status(400).json({error:"Invalid Credentials"});
     } catch (err) {
       console.log(err);
     }
@@ -124,7 +128,7 @@ router.post("/register", async (req, res) => {
 
   router.get('/dasboard', async (req, res) => {
     try{
-      const users = await UserModal.countDocuments();
+      const users = await UserModal.countDocuments({status: 'active'});
       const categories = await CategoryModal.countDocuments({status: 'active'});
       const contact = await ContactModal.countDocuments({status: 'active'});
       const posts = await PostModal.countDocuments({status: 'active'});
@@ -171,42 +175,6 @@ router.post("/register", async (req, res) => {
       }
   });
 
-  router.post('/mail', async (req,res)=>{
-    async function main() {
-      // Generate test SMTP service account from ethereal.email
-      // Only needed if you don't have a real mail account for testing
-      let testAccount = await nodemailer.createTestAccount();
-    
-      // create reusable transporter object using the default SMTP transport
-      let transporter = nodemailer.createTransport({
-        host: "smtp.gmail.com",
-        port: 587,
-        secure: false, // true for 465, false for other ports
-        auth: {
-          user: 'vasim.infonic@gmail.com', // generated ethereal user
-          pass: 'kavip@123', // generated ethereal password
-        },
-      });
-    
-      // send mail with defined transport object
-      let info = await transporter.sendMail({
-        from: '"Fred Foo 👻" <foo@example.com>', // sender address
-        to: "vasim.infonic@gmail.com", // list of receivers
-        subject: "Hello ✔", // Subject line
-        text: "Hello world?", // plain text body
-        html: "<b>Hello world?</b>", // html body
-      });
-    
-      console.log("Message sent: %s", info.messageId);
-      // Message sent: <b658f8ca-6296-ccf4-8306-87d57a0b4321@example.com>
-    
-      // Preview only available when sending through an Ethereal account
-      console.log("Preview URL: %s", nodemailer.getTestMessageUrl(info));
-      // Preview URL: https://ethereal.email/message/WaQKMgKddxQDoou...
-    }
-    
-    main().catch(console.error);
-  })
 router.get('/forgot', async(req,res)=>{
   let authHeader = req.headers.authorization;
   if(!authHeader){
@@ -232,6 +200,7 @@ router.put('/forgot', async(req,res)=>{
 
 });
 router.post('/forgot', async(req,res)=>{
+  console.log(process.env.HOST);
   const { email } = req.body;
   console.log(req.body);
   const user = await UserModal.findOne({email});
@@ -269,17 +238,156 @@ router.post('/forgot', async(req,res)=>{
 
     console.log("Message sent: %s", info.messageId);
     res.status(200).json({message: 'Please Check Your Email for Update Password', err: false});
-
   }catch(err){
     res.status(500).json({message: 'Server Error', err: true})
 
   }
   }catch(err){
-    res.status(503).json({message: 'Server Error'});
+    res.status(503).json({message: 'Server Not Found'});
   }
-  
-
 
 })
 
+router.get('/find/:id', async(req, res)=>{   
+  try{
+   const _id = req.params.id
+   const finduser = await UserModal.findOne({ _id }).select('-__V');
+   res.status(200).json(finduser);
+  }catch(err){
+      res.status(200).json({message: 'something went wrong +'+ err})
+  }
+})
+
+router.put('/trash',async(req, res)=>{
+  const { userId, status } = req.body;
+  let count;
+  if (userId){
+     count = userId.length;
+  }
+  console.log(userId, status);
+   try{
+   await UserModal.updateMany({ _id: {$in :userId }}, { $set: { status, active: 'false' }})
+  .then(res.status(200).json({message:`${count} File has been ${ status === 'active' ? 'restore' : 'trashed' } `}))
+  .catch((err)=>res.status(400).json({message: err}));
+  }catch(err){
+     res.status(500).json({message:'got an'+ err });
+  }
+});
+
+router.get('/trash/filter' ,async(req,res)=>{
+  let { page, row } = req.query
+  if(page <= 0){
+     page = 0;
+  }
+  if(row <= 5){
+     row = 5;
+  }
+  let diff = row * page;
+  console.log(page, row);
+  let total;
+  try{
+     await UserModal.countDocuments({status: 'deActive'})
+     .then(res=>total = res)
+     .catch(err=>console.log(err));
+  }catch(err){
+     console.log(err);
+  }
+  try{
+     await UserModal.find({status: 'deActive'}).sort({_id: -1}).skip(+diff).limit(+row)
+     .then(doc=>res.status(200).json({data: doc,total}))
+     .catch(err=>res.status(400).json({message: err}));
+  }catch(err){
+     res.status(400).json({message: 'got error' + err})
+  }
+})
+
+router.delete('/del', async(req, res)=>{
+  const ids = req.body.userId;
+ let count;
+ if(ids){
+    count = ids.length; 
+ }
+ try{
+ await UserModal.deleteMany({ _id: { $in: ids }})
+ .then(res.status(200).json({message:`${count} User Has Been Deleted`}))
+ }catch(err){
+    res.status(400).json({message: "Got an error" + err })
+ }
+});
+
+router.put('/upd', async(req, res)=>{
+  const {userId, name, email, active, role, password } = req.body;
+  console.log(req.body)
+  try{
+      await UserModal.updateOne({ _id: userId }, { $set: { 
+        name,
+        email,
+        active,
+        role,
+        password
+      }})
+    res.status(200).json({message: 'One Category Has Been Update'})     
+  }catch(error){
+    console.log(error);
+      res.status(400).json({message: 'something went wrong +'+ error, err:true})
+  }
+})
+
+router.post('/add', async(req, res)=>{
+  console.log(req.body);
+  const { name, email, active, role, password } = req.body;
+  try{
+   const newCat = new UserModal({
+      name,
+      email,
+      active,
+      role,
+      password
+   })
+    newCat.save()
+    .then(res.status(200).json({message: 'One Category Inserted Successfully'}))
+  }catch(error){
+    console.log(error);
+      res.status(200).json({message: 'something went wrong +'+ error, err: true})
+  }
+});
+router.get('/filter', async(req, res)=>{ 
+  let { page, row } = req.query;
+  if(page <= 0){
+      page = 0;
+   }
+   if(row <= 5){
+      row = 5;
+   }
+   let diff = row * page;
+   console.log(page, row);
+   let total;
+   try{
+      await UserModal.countDocuments({status: 'active'})
+      .then(res=>total = res)
+      .catch(err=>console.log(err));
+   }catch(err){
+      console.log(err);
+   }
+   try{
+      await UserModal.find({status: 'active'}).sort({ _id: -1 }).skip(+diff).limit(+row)
+      .then(doc=>res.status(200).json({data: doc,total}))
+      .catch(err=>console.log(err));
+   }catch(err){
+      res.status(400).json({message: 'got error' + err})
+   }
+});
+
+router.get('/active',async(req, res)=>{
+  const { userId, active } = req.query; 
+  act = active == 'true' ? 'false' : 'true';
+  console.log(req.params);
+   try{
+   await UserModal.updateOne({ _id: userId }, { $set: { active: act }})
+  .then(res.status(200).json({message:` User has been ${ act === 'true' ? ' Activeted' : 'Deactiveted' } `}))
+  .catch((err)=>res.status(400).json({message: err}));
+  }catch(err){
+     res.status(500).json({message:'got an'+ err });
+  }
+});
 module.exports = router;

@@ -1,6 +1,6 @@
 const express = require('express');
 const  router = express.Router();
-const { PostModal, CategoryModal } = require('../schema/Schema')
+const { PostModal, CategoryModal, UserModal } = require('../schema/Schema')
 require('dotenv').config();
 const mongoose = require('mongoose');
 const slugify = require('slugify')
