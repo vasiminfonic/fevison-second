@@ -225,7 +225,7 @@ router.post('/forgot', async(req,res)=>{
       secure: false, // true for 465, false for other ports
       auth: {
         user: 'vasim.infonic@gmail.com', // generated ethereal user
-        pass: 'kavip@123', // generated ethereal password
+        pass: 'qiwpdofprhvkeevk', // generated ethereal password
       },
     });
     let info = await transporter.sendMail({
